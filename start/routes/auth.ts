@@ -15,17 +15,7 @@ router
 
     router
       .post('/login', [AuthController, 'login'])
-      /**
-       * Layer 1 — Per-IP limit.
-       *
-       * Blocks volumetric attacks and credential-stuffing bots that rotate
-       * accounts but share a single egress IP (e.g. a single compromised
-       * machine testing many email/password combinations).
-       *
-       * Threshold: 10 attempts per IP per 15 minutes.
-       * A legitimate user logging in from one IP on behalf of multiple accounts
-       * (e.g. a family) is unlikely to exceed 10 attempts in 15 minutes.
-       */
+
       .use(
         middleware.throttle({
           requests: 10,
@@ -34,19 +24,7 @@ router
           message: 'Too many login attempts from this IP. Please try again later.',
         })
       )
-      /**
-       * Layer 2 — Per-account (email) limit.
-       *
-       * A bot rotating IPs can still be stopped here: each individual account
-       * is limited to 5 attempts per 15 minutes regardless of how many IPs
-       * are used.  After 5 failures the account key is blocked for 30 minutes,
-       * which drastically slows down password-guessing campaigns.
-       *
-       * The key is derived from the normalised email in the request body.
-       * An empty / missing email falls back to the request IP so the middleware
-       * never crashes on malformed payloads (validation happens inside the
-       * controller, not here).
-       */
+
       .use(
         middleware.throttle({
           requests: 5,

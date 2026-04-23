@@ -23,6 +23,56 @@ export const appUrl = env.get('APP_URL')
  */
 export const http = defineConfig({
   /**
+   * Trusted proxy configuration.
+   *
+   * When the app runs behind a reverse proxy (nginx, Caddy, AWS ALB,
+   * Cloudflare, etc.) the real client IP arrives in a header like
+   * X-Forwarded-For rather than in the TCP connection address.
+   *
+   * Setting trustProxy correctly ensures that:
+   *  - request.ip()          → real client IP (used by rate limiter & audit log)
+   *  - request.secure        → true when the original request used HTTPS
+   *  - request.hostname      → the original Host header value
+   *
+   * Options:
+   *  false              – trust nobody; use raw TCP address (default for dev).
+   *  true               – trust every proxy in the chain (UNSAFE in production;
+   *                       allows attackers to spoof IPs via X-Forwarded-For).
+   *  'loopback'         – trust 127.0.0.1 and ::1 only (single-server setups).
+   *  '10.0.0.0/8'       – trust a specific CIDR range (recommended for AWS VPC,
+   *                       Docker networks, etc.).
+   *  (addr, hop) => bool – full control; return true only for known proxy IPs.
+   *
+   * Production recommendation: use the narrowest option that works for your
+   * infrastructure — typically the CIDR block of your internal network or the
+   * specific IPs of your load balancers.
+   */
+  trustProxy: app.inProduction
+    ? (address: string) => {
+        // Trust only RFC-1918 private ranges used by most cloud load balancers.
+        // Extend this list to match your actual infrastructure.
+        const trustedCidrs = [
+          '10.0.0.0/8', // AWS VPC, GCP, Azure private ranges
+          '172.16.0.0/12', // Docker / Kubernetes pod networks
+          '192.168.0.0/16', // On-prem / local private networks
+          '127.0.0.1', // Loopback (nginx on same host)
+          '::1', // IPv6 loopback
+        ]
+        return trustedCidrs.some((cidr) => {
+          if (cidr.includes('/')) {
+            // Simple CIDR check (covers /8, /12, /16 used above)
+            const [base, bits] = cidr.split('/')
+            const mask = ~(2 ** (32 - Number(bits)) - 1) >>> 0
+            const baseInt = base.split('.').reduce((acc, o) => (acc << 8) | Number(o), 0) >>> 0
+            const addrInt = address.split('.').reduce((acc, o) => (acc << 8) | Number(o), 0) >>> 0
+            return (addrInt & mask) === (baseInt & mask)
+          }
+          return address === cidr
+        })
+      }
+    : 'loopback',
+
+  /**
    * Generate a unique request id for each incoming request.
    * Useful to correlate logs and debug a request flow.
    */

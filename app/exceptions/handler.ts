@@ -17,13 +17,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       const err = error as any
       const status = err.status || 500
       const message = err.message || 'Internal server error'
-      
+
       return ctx.response.status(status).send({
         error: {
-          message: this.debug ? message : (status >= 500 ? 'Internal Server Error' : message),
+          message: this.debug ? message : status >= 500 ? 'Internal Server Error' : message,
           code: err.code || 'UNKNOWN_ERROR',
-          ...(err.messages ? { details: err.messages } : {})
-        }
+          ...(err.messages ? { details: err.messages } : {}),
+        },
       })
     }
     return super.handle(error, ctx)

@@ -11,7 +11,7 @@ const sessionConfig = defineConfig({
   /**
    * Cookie name storing the session identifier.
    */
-  cookieName: 'adonis-session',
+  cookieName: 'sid',
 
   /**
    * When set to true, the session id cookie will be deleted
@@ -24,6 +24,8 @@ const sessionConfig = defineConfig({
    * any activity.
    */
   age: '2h',
+  // Note: renaming the cookie from 'adonis-session' to 'sid' avoids
+  // exposing which framework powers the backend (fingerprinting reduction).
 
   /**
    * Configuration for session cookie and the
@@ -48,7 +50,13 @@ const sessionConfig = defineConfig({
     /**
      * Cross-site policy for cookie sending.
      */
-    sameSite: 'lax',
+    /**
+     * 'strict' is the most secure option: the cookie is never sent on
+     * cross-site requests (including top-level navigation from external sites).
+     * Use 'lax' only if you need cookies on cross-site GET navigations
+     * (e.g., OAuth redirects landing back on your app).
+     */
+    sameSite: 'strict',
   },
 
   /**

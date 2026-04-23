@@ -22,6 +22,13 @@ export default await Env.create(new URL('../', import.meta.url), {
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
 
+  /**
+   * Comma-separated list of allowed CORS origins in production.
+   * Example: https://app.example.com,https://admin.example.com
+   * Leave empty to block all cross-origin requests (safest default).
+   */
+  CORS_ALLOWED_ORIGINS: Env.schema.string.optional(),
+
   // Session
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database', 'redis'] as const),
 
@@ -33,10 +40,13 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_HOST: Env.schema.string({ format: 'host' }),
   DB_PORT: Env.schema.number(),
   DB_USER: Env.schema.string(),
-  DB_PASSWORD: Env.schema.string.optional(),
+  /**
+   * Database password is required — never run without one in any environment.
+   */
+  DB_PASSWORD: Env.schema.string(),
   DB_DATABASE: Env.schema.string(),
 
   REDIS_HOST: Env.schema.string({ format: 'host' }),
   REDIS_PORT: Env.schema.number(),
-  REDIS_PASSWORD: Env.schema.secret.optional()
+  REDIS_PASSWORD: Env.schema.secret.optional(),
 })

@@ -30,13 +30,21 @@ const shieldConfig = defineConfig({
     /**
      * Enable CSRF token verification for state-changing requests.
      */
-    enabled: false,
+    enabled: true,
 
     /**
      * Route patterns to exclude from CSRF checks.
      * Useful for external webhooks or API endpoints.
+     *
+     * API endpoints using Bearer tokens are excluded since they
+     * don't rely on cookies and are not vulnerable to CSRF.
+     * Web session endpoints will still be protected.
      */
-    exceptRoutes: [],
+    exceptRoutes: [
+      '/api/auth/login', // Login accepts both API and web clients
+      '/api/auth/register', // Registration endpoint
+      '/api/*', // Exclude all API routes if using Bearer tokens
+    ],
 
     /**
      * Expose an encrypted XSRF-TOKEN cookie for frontend HTTP clients.
@@ -77,7 +85,7 @@ const shieldConfig = defineConfig({
     /**
      * HSTS policy duration remembered by browsers.
      */
-    maxAge: '180 days',
+    maxAge: '365 days',
   },
 
   /**

@@ -1,5 +1,23 @@
 import app from '@adonisjs/core/services/app'
+import env from '#start/env'
 import { defineConfig } from '@adonisjs/cors'
+
+/**
+ * Parse the CORS_ALLOWED_ORIGINS environment variable into an array of strings.
+ *
+ * Expected format: a comma-separated list of fully-qualified origins.
+ * Example: "https://app.example.com,https://admin.example.com"
+ *
+ * Returns an empty array (block all) when the variable is not set.
+ */
+function parseAllowedOrigins(): string[] {
+  const raw = env.get('CORS_ALLOWED_ORIGINS')
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean)
+}
 
 /**
  * Configuration options to tweak the CORS policy. The following
@@ -14,11 +32,17 @@ const corsConfig = defineConfig({
   enabled: true,
 
   /**
-   * In development, allow every origin to simplify local front/backend setup.
-   * In production, keep an explicit allowlist (empty by default, so no
-   * cross-origin browser access is allowed until configured).
+   * Origin policy:
+   *  - Development  → allow every origin so the local frontend works without
+   *                   extra configuration.
+   *  - Production   → read the whitelist from CORS_ALLOWED_ORIGINS.
+   *                   If the variable is empty / unset, all cross-origin
+   *                   requests are blocked (safest default).
+   *
+   * Set CORS_ALLOWED_ORIGINS in your production .env:
+   *   CORS_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
    */
-  origin: app.inDev ? true : [],
+  origin: app.inDev ? true : parseAllowedOrigins(),
 
   /**
    * HTTP methods accepted for cross-origin requests.
@@ -37,7 +61,8 @@ const corsConfig = defineConfig({
   exposeHeaders: [],
 
   /**
-   * Allow cookies/authorization headers on cross-origin requests.
+   * Allow cookies / Authorization headers on cross-origin requests.
+   * Required when the web guard sends the session cookie cross-origin.
    */
   credentials: true,
 

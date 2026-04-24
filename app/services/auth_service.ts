@@ -2,7 +2,10 @@ import User from '#models/user'
 import { Exception } from '@adonisjs/core/exceptions'
 import hash from '@adonisjs/core/services/hash'
 import type { Infer } from '@vinejs/vine/types'
-import type { registerValidator, updateProfileValidator } from '#validators/auth'
+import type { registerValidator, updateProfileValidator, loginValidator } from '#validators/auth'
+import type { HttpContext } from '@adonisjs/core/http'
+import AuditLogger from '#services/audit_logger'
+import { inject } from '@adonisjs/core'
 
 /**
  * Token expiration presets.
@@ -17,7 +20,10 @@ const TOKEN_EXPIRY = {
   long: '90 days',
 } as const
 
+@inject()
 export default class AuthService {
+  constructor(private auditLogger: AuditLogger) {}
+
   /**
    * Register a new user
    */
@@ -26,26 +32,60 @@ export default class AuthService {
   }
 
   /**
-   * Verify user credentials.
-   *
-   * Steps:
-   *  1. Delegates to withAuthFinder mixin which performs a constant-time
-   *     hash comparison, preventing timing attacks.
-   *  2. After a successful credential check, ensures the account is active.
-   *     Inactive accounts receive the same 401 response as wrong credentials
-   *     so we don't leak whether the email exists in the system.
+   * Complete login flow including audit logging.
    */
-  async verifyCredentials(email: string, password: string): Promise<User> {
-    const user = await User.verifyCredentials(email, password)
+  async attemptLogin(ctx: HttpContext, payload: Infer<typeof loginValidator>) {
+    const { email, password, client } = payload
+    let user
 
-    if (!user.active) {
-      throw new Exception('Your account has been deactivated. Please contact support.', {
-        status: 403,
-        code: 'E_ACCOUNT_INACTIVE',
-      })
+    try {
+      user = await User.verifyCredentials(email, password)
+      if (!user.active) {
+        throw new Exception('Your account has been deactivated. Please contact support.', {
+          status: 403,
+          code: 'E_ACCOUNT_INACTIVE',
+        })
+      }
+    } catch (error: unknown) {
+      const code = (error as { code?: string }).code
+      if (code === 'E_ACCOUNT_INACTIVE') {
+        this.auditLogger.loginBlocked(ctx, email)
+      } else {
+        this.auditLogger.loginFailed(ctx, email, 'invalid_credentials')
+        throw new Exception('Invalid credentials', { status: 401, code: 'E_INVALID_CREDENTIALS' })
+      }
+      throw error
     }
 
-    return user
+    if (client === 'api') {
+      const token = await this.generateToken(user)
+      if (!token.value) throw new Exception('Failed to generate token', { status: 500 })
+      this.auditLogger.loginSuccess(ctx, user.id, user.email)
+      this.auditLogger.tokenCreated(ctx, user.id)
+      return { type: 'bearer', token: token.value.release() }
+    }
+
+    await ctx.auth.use('web').login(user)
+    this.auditLogger.loginSuccess(ctx, user.id, user.email)
+    return { message: 'Logged in successfully', user }
+  }
+
+  /**
+   * Complete logout flow including audit logging.
+   */
+  async attemptLogout(ctx: HttpContext) {
+    if (ctx.auth.use('web').isAuthenticated) {
+      const user = ctx.auth.use('web').user!
+      await ctx.auth.use('web').logout()
+      this.auditLogger.logout(ctx, user.id)
+    } else if (ctx.auth.use('api').isAuthenticated) {
+      const user = ctx.auth.use('api').user
+      if (user && user.currentAccessToken) {
+        await this.revokeToken(user, user.currentAccessToken.identifier as string | number)
+        this.auditLogger.tokenRevoked(ctx, user.id)
+        this.auditLogger.logout(ctx, user.id)
+      }
+    }
   }
 
   /**
@@ -98,10 +138,15 @@ export default class AuthService {
    * @throws 401 when `currentPassword` is provided but does not match.
    */
   async updateProfile(user: User, payload: Infer<typeof updateProfileValidator>): Promise<User> {
-    const { name, email, currentPassword, newPassword } = payload
+    const { name, email, currentPassword, newPassword, avatarUrl, phone, timezone, locale, metadata } = payload
 
     if (name !== undefined) user.name = name
     if (email !== undefined) user.email = email
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl
+    if (phone !== undefined) user.phone = phone
+    if (timezone !== undefined) user.timezone = timezone
+    if (locale !== undefined) user.locale = locale
+    if (metadata !== undefined) user.metadata = metadata
 
     if (newPassword !== undefined) {
       // currentPassword is required to change the password

@@ -1,6 +1,6 @@
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
-const AuthController = () => import('#controllers/auth_controller')
+const AuthController = () => import('#controllers/auth/auth_controller')
 
 router
   .group(() => {
@@ -37,6 +37,19 @@ router
           },
         })
       )
+
+    const PasswordResetsController = () => import('#controllers/auth/password_resets_controller')
+
+    router.post('/forgot-password', [PasswordResetsController, 'forgot']).use(
+      middleware.throttle({
+        requests: 3,
+        duration: '15 mins',
+        blockDuration: '30 mins',
+        message: 'Too many password reset requests. Please try again later.',
+      })
+    )
+
+    router.post('/reset-password', [PasswordResetsController, 'reset'])
 
     router
       .group(() => {

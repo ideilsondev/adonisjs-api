@@ -8,6 +8,8 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id').notNullable()
+      table.integer('tenant_id').unsigned().index().nullable() // Padrão Multi-tenant SaaS
+      
       table.string('name').nullable()
       table.string('email', 254).notNullable().unique()
       table.string('password').notNullable()
@@ -22,8 +24,15 @@ export default class extends BaseSchema {
         .defaultTo('user')
       table.boolean('is_super').notNullable().defaultTo(false)
 
+      table.string('avatar_url').nullable()
+      table.string('phone').nullable()
+      table.string('timezone').nullable().defaultTo('UTC')
+      table.string('locale').nullable().defaultTo('pt-BR')
+      table.jsonb('metadata').nullable()
+
       table.timestamp('created_at').notNullable()
       table.timestamp('updated_at').nullable()
+      table.timestamp('deleted_at').nullable().index() // Padrão Soft Deletes
     })
   }
 

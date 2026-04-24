@@ -32,6 +32,21 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class PasswordResetTokenSchema extends BaseModel {
+  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'token'] as const
+  $columns = PasswordResetTokenSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime | null
+  @column()
+  declare email: string
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare token: string
+}
+
 export class RateLimitSchema extends BaseModel {
   static $columns = ['expire', 'key', 'points'] as const
   $columns = RateLimitSchema.$columns
@@ -44,12 +59,16 @@ export class RateLimitSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['active', 'createdAt', 'email', 'id', 'isSuper', 'name', 'password', 'role', 'updatedAt'] as const
+  static $columns = ['active', 'avatarUrl', 'createdAt', 'deletedAt', 'email', 'id', 'isSuper', 'locale', 'metadata', 'name', 'password', 'phone', 'role', 'tenantId', 'timezone', 'updatedAt'] as const
   $columns = UserSchema.$columns
   @column()
   declare active: boolean
+  @column()
+  declare avatarUrl: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
   @column()
   declare email: string
   @column({ isPrimary: true })
@@ -57,11 +76,21 @@ export class UserSchema extends BaseModel {
   @column()
   declare isSuper: boolean
   @column()
+  declare locale: string | null
+  @column()
+  declare metadata: any | null
+  @column()
   declare name: string | null
   @column({ serializeAs: null })
   declare password: string
   @column()
+  declare phone: string | null
+  @column()
   declare role: any
+  @column()
+  declare tenantId: number | null
+  @column()
+  declare timezone: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 }

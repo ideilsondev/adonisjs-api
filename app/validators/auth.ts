@@ -118,6 +118,11 @@ export const loginValidator = vine.compile(
 export const updateProfileValidator = vine.compile(
   vine.object({
     name: vine.string().trim().minLength(2).maxLength(255).optional(),
+    avatarUrl: vine.string().url().optional(),
+    phone: vine.string().trim().optional(),
+    timezone: vine.string().trim().optional(),
+    locale: vine.string().trim().optional(),
+    metadata: vine.object({}).allowUnknownProperties().optional(),
 
     email: vine
       .string()
@@ -140,5 +145,25 @@ export const updateProfileValidator = vine.compile(
      */
     currentPassword: vine.string().optional(),
     newPassword: vine.string().minLength(8).maxLength(128).use(strongPassword()).optional(),
+  })
+)
+
+/**
+ * Validator for forgot password request.
+ */
+export const forgotPasswordValidator = vine.compile(
+  vine.object({
+    email: vine.string().email().trim().normalizeEmail(),
+  })
+)
+
+/**
+ * Validator for reset password request.
+ */
+export const resetPasswordValidator = vine.compile(
+  vine.object({
+    email: vine.string().email().trim().normalizeEmail(),
+    token: vine.string().trim(),
+    newPassword: vine.string().minLength(8).maxLength(128).use(strongPassword()),
   })
 )

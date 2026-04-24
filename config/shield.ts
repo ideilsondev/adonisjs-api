@@ -9,12 +9,23 @@ const shieldConfig = defineConfig({
     /**
      * Enable the Content-Security-Policy header.
      */
-    enabled: false,
+    enabled: true,
 
     /**
      * Per-resource CSP directives.
+     * Como é uma API pura, aplicamos a regra mais restrita possível
+     * bloqueando execução de scripts, fontes, frames, etc., caso 
+     * algum navegador acesse diretamente os endpoints.
      */
-    directives: {},
+    directives: {
+      defaultSrc: ["'none'"],
+      scriptSrc: ["'none'"],
+      styleSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
 
     /**
      * Report violations without blocking resources.

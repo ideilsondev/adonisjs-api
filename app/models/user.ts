@@ -31,6 +31,27 @@ export default class User extends compose(UserSchema, withAuthFinder(hash)) {
   @column()
   declare isSuper: boolean
 
+  @column()
+  declare avatarUrl: string | null
+
+  @column()
+  declare phone: string | null
+
+  @column()
+  declare timezone: string
+
+  @column()
+  declare locale: string
+
+  @column()
+  declare metadata: Record<string, any> | null
+
+  @column()
+  declare tenantId: number | null
+
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+
   get initials() {
     const [first, last] = this.name ? this.name.split(' ') : this.email.split('@')
     if (first && last) {

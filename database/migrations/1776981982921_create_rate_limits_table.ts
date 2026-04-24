@@ -22,23 +22,8 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      /**
-       * Primary key: the rate-limiter key string.
-       * Format: "<keyPrefix><identifier>"  e.g. "ip:127.0.0.1"
-       */
       table.string('key', 255).primary()
-
-      /**
-       * Number of requests consumed within the current window.
-       * rate-limiter-flexible increments this on every consume() call.
-       */
       table.integer('points').notNullable().defaultTo(0)
-
-      /**
-       * Expiry timestamp in Unix milliseconds (bigint).
-       * NULL means the entry never expires (used for permanently blocked keys).
-       * The library deletes rows where expire < Date.now() during cleanup.
-       */
       table.bigInteger('expire').nullable()
     })
   }

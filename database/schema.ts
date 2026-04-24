@@ -8,18 +8,7 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
 export class AuthAccessTokenSchema extends BaseModel {
-  static $columns = [
-    'abilities',
-    'createdAt',
-    'expiresAt',
-    'hash',
-    'id',
-    'lastUsedAt',
-    'name',
-    'tokenableId',
-    'type',
-    'updatedAt',
-  ] as const
+  static $columns = ['abilities', 'createdAt', 'expiresAt', 'hash', 'id', 'lastUsedAt', 'name', 'tokenableId', 'type', 'updatedAt'] as const
   $columns = AuthAccessTokenSchema.$columns
   @column()
   declare abilities: string
@@ -55,7 +44,7 @@ export class RateLimitSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['active', 'createdAt', 'email', 'id', 'name', 'password', 'updatedAt'] as const
+  static $columns = ['active', 'createdAt', 'email', 'id', 'isSuper', 'name', 'password', 'role', 'updatedAt'] as const
   $columns = UserSchema.$columns
   @column()
   declare active: boolean
@@ -66,9 +55,13 @@ export class UserSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
   @column()
+  declare isSuper: boolean
+  @column()
   declare name: string | null
   @column({ serializeAs: null })
   declare password: string
+  @column()
+  declare role: any
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 }

@@ -49,4 +49,17 @@ export default await Env.create(new URL('../', import.meta.url), {
   REDIS_HOST: Env.schema.string({ format: 'host' }),
   REDIS_PORT: Env.schema.number(),
   REDIS_PASSWORD: Env.schema.secret.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for the database seeder
+  |
+  | Only required when running: node ace db:seed
+  | Never leave these with weak values in production.
+  |----------------------------------------------------------
+  */
+  SEED_ADMIN_NAME: Env.schema.string.optional(),
+  SEED_ADMIN_EMAIL: Env.schema.string.optional(),
+  SEED_ADMIN_PASSWORD: Env.schema.string.optional(),
+  SEED_ADMIN_IS_SUPER: Env.schema.boolean.optional(),
 })

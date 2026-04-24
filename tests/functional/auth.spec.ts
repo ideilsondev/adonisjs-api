@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import User from '#models/user'
+import type { UserRole } from '#models/user'
 import testUtils from '@adonisjs/core/services/test_utils'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,13 +16,20 @@ async function loginAsApi(client: ApiClient, email: string, password: string): P
 
 /** Shorthand to create a minimal active user. */
 async function createUser(
-  overrides: Partial<{ name: string; email: string; password: string; active: boolean }> = {}
+  overrides: Partial<{
+    name: string
+    email: string
+    password: string
+    active: boolean
+    role: UserRole
+  }> = {}
 ) {
   return User.create({
     name: overrides.name ?? 'Test User',
     email: overrides.email ?? 'user@example.com',
     password: overrides.password ?? 'Test@Pass123',
     active: overrides.active ?? true,
+    role: overrides.role ?? 'user',
   })
 }
 
@@ -46,6 +54,26 @@ test.group('Auth / Register', (group) => {
     const user = await User.findBy('email', 'john@example.com')
     assert.isNotNull(user)
     assert.isTrue(user!.active)
+    // public registration always creates a standard user, never an admin
+    assert.equal(user!.role, 'user')
+  })
+
+  test('registration never accepts a role field — always defaults to user', async ({
+    client,
+    assert,
+  }) => {
+    const response = await client.post('/api/auth/register').json({
+      name: 'Sneaky User',
+      email: 'sneaky@example.com',
+      password: 'Test@Pass123',
+      // attempt to self-promote — must be silently ignored
+      role: 'admin',
+    })
+
+    response.assertStatus(201)
+
+    const user = await User.findBy('email', 'sneaky@example.com')
+    assert.equal(user!.role, 'user')
   })
 
   test('name is optional — registers without it', async ({ client }) => {
@@ -182,6 +210,66 @@ test.group('Auth / Login', (group) => {
     assert.equal(inactive.status(), 403)
     const inactiveBody = inactive.body() as unknown as { error: { code: string } }
     assert.equal(inactiveBody.error.code, 'E_ACCOUNT_INACTIVE')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Roles
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.group('Auth / Roles', (group) => {
+  group.each.setup(() => testUtils.db().withGlobalTransaction())
+
+  test('regular user has role "user" in /me response', async ({ client }) => {
+    await createUser({ email: 'regular@example.com', role: 'user' })
+    const token = await loginAsApi(client, 'regular@example.com', 'Test@Pass123')
+
+    const response = await client.get('/api/auth/me').header('Authorization', `Bearer ${token}`)
+
+    response.assertStatus(200)
+    response.assertBodyContains({ user: { role: 'user' } })
+  })
+
+  test('admin user has role "admin" in /me response', async ({ client }) => {
+    await createUser({ email: 'admin@example.com', role: 'admin' })
+    const token = await loginAsApi(client, 'admin@example.com', 'Test@Pass123')
+
+    const response = await client.get('/api/auth/me').header('Authorization', `Bearer ${token}`)
+
+    response.assertStatus(200)
+    response.assertBodyContains({ user: { role: 'admin' } })
+  })
+
+  test('user cannot change own role via PATCH /me', async ({ client, assert }) => {
+    await createUser({ email: 'norole@example.com', role: 'user' })
+    const token = await loginAsApi(client, 'norole@example.com', 'Test@Pass123')
+
+    // send role in the body — must be ignored
+    const response = await client
+      .patch('/api/auth/me')
+      .header('Authorization', `Bearer ${token}`)
+      .json({ role: 'admin' })
+
+    response.assertStatus(200)
+
+    // role must remain 'user' in the database
+    const user = await User.findBy('email', 'norole@example.com')
+    assert.equal(user!.role, 'user')
+  })
+
+  test('admin can still login normally', async ({ client, assert }) => {
+    await createUser({ email: 'adminlogin@example.com', role: 'admin' })
+
+    const response = await client.post('/api/auth/login').json({
+      email: 'adminlogin@example.com',
+      password: 'Test@Pass123',
+      client: 'api',
+    })
+
+    response.assertStatus(200)
+    const body = response.body() as unknown as { type: string; token: string }
+    assert.equal(body.type, 'bearer')
+    assert.exists(body.token)
   })
 })
 

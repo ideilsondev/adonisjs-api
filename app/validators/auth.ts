@@ -68,6 +68,11 @@ const strongPassword = vine.createRule(async (value, _options, field) => {
 
 /**
  * Validator to validate the payload when registering a new user.
+ *
+ * Note: `role` is intentionally absent.
+ * Public registration always creates a standard `user` account.
+ * The `admin` role can only be assigned via the database seeder or a
+ * direct DB update — never through the HTTP API.
  */
 export const registerValidator = vine.compile(
   vine.object({
@@ -105,6 +110,10 @@ export const loginValidator = vine.compile(
  *    re-submitting the same email doesn't fail validation.
  *  - Password change requires the current password for confirmation.
  *  - New password follows the same strength rules as registration.
+ *
+ * Note: `role` and `active` are intentionally absent.
+ * Users cannot promote themselves or deactivate their own account through this
+ * endpoint.  Those fields are managed exclusively by admin operations.
  */
 export const updateProfileValidator = vine.compile(
   vine.object({

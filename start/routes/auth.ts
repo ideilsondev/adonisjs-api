@@ -24,7 +24,6 @@ router
           message: 'Too many login attempts from this IP. Please try again later.',
         })
       )
-
       .use(
         middleware.throttle({
           requests: 5,

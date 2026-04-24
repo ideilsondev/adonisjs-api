@@ -43,6 +43,7 @@ router
       .group(() => {
         router.post('/logout', [AuthController, 'logout'])
         router.get('/me', [AuthController, 'me'])
+        router.patch('/me', [AuthController, 'update'])
       })
       .use(middleware.auth())
   })

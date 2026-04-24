@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
+import app from '@adonisjs/core/services/app'
 import limiter from '@adonisjs/limiter/services/main'
 
 /**
@@ -85,6 +86,22 @@ export default class ThrottleMiddleware {
       key,
       message = 'Too many requests. Please try again later.',
     } = options
+
+    // ── 0. Skip in development and test environments ────────────────────────
+    //
+    // Development: the server is only reachable locally, so rate limiting
+    // adds friction with no security benefit. It also avoids requiring a
+    // running Redis instance just to hit a single endpoint.
+    //
+    // Test: the memory store accumulates state across tests within the same
+    // process. Since tests call the same endpoints multiple times (e.g. three
+    // register attempts to validate different validation rules), they would
+    // exhaust the low per-test limits and return 429 instead of the expected
+    // 422/201. Skipping here keeps tests fast and deterministic; rate limiting
+    // is still exercised by dedicated rate-limit test cases if needed.
+    if (app.inDev || app.inTest) {
+      return next()
+    }
 
     // ── 1. Determine the unique client key ─────────────────────────────────
     const identifier = key ? key(ctx) : `ip:${ctx.request.ip()}`

@@ -9,6 +9,7 @@ export type AuditEvent =
   | 'auth:register'
   | 'auth:login_success'
   | 'auth:login_failed'
+  | 'auth:login_blocked'
   | 'auth:logout'
   | 'auth:token_created'
   | 'auth:token_revoked'
@@ -62,7 +63,11 @@ export default class AuditLogger {
      *  - failures and unauthorized accesses → warn
      *  - everything else (informational) → info
      */
-    if (event === 'auth:login_failed' || event === 'auth:unauthorized_access') {
+    if (
+      event === 'auth:login_failed' ||
+      event === 'auth:login_blocked' ||
+      event === 'auth:unauthorized_access'
+    ) {
       logger.warn(payload, `[AUDIT] ${event}`)
     } else {
       logger.info(payload, `[AUDIT] ${event}`)
@@ -81,6 +86,10 @@ export default class AuditLogger {
 
   loginFailed(ctx: Pick<HttpContext, 'request'>, email: string, reason?: string) {
     this.log(ctx, 'auth:login_failed', { email, meta: { reason } })
+  }
+
+  loginBlocked(ctx: Pick<HttpContext, 'request'>, email: string) {
+    this.log(ctx, 'auth:login_blocked', { email, meta: { reason: 'account_inactive' } })
   }
 
   logout(ctx: Pick<HttpContext, 'request'>, userId: number) {

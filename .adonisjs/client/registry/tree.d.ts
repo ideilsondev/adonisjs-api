@@ -7,5 +7,6 @@ export interface ApiDefinition {
     login: typeof routes['auth.login']
     logout: typeof routes['auth.logout']
     me: typeof routes['auth.me']
+    update: typeof routes['auth.update']
   }
 }

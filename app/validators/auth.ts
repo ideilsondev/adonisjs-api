@@ -71,7 +71,7 @@ const strongPassword = vine.createRule(async (value, _options, field) => {
  */
 export const registerValidator = vine.compile(
   vine.object({
-    fullName: vine.string().trim().minLength(3).maxLength(255).optional(),
+    name: vine.string().trim().minLength(2).maxLength(255).optional(),
     email: vine
       .string()
       .email()
@@ -93,5 +93,43 @@ export const loginValidator = vine.compile(
     email: vine.string().email().trim().normalizeEmail(),
     password: vine.string(),
     client: vine.enum(['web', 'api']).optional(),
+  })
+)
+
+/**
+ * Validator for updating the authenticated user's own profile.
+ *
+ * Rules:
+ *  - All fields are optional — clients can send only what changed (PATCH semantics).
+ *  - Email uniqueness is checked excluding the current user's own email so that
+ *    re-submitting the same email doesn't fail validation.
+ *  - Password change requires the current password for confirmation.
+ *  - New password follows the same strength rules as registration.
+ */
+export const updateProfileValidator = vine.compile(
+  vine.object({
+    name: vine.string().trim().minLength(2).maxLength(255).optional(),
+
+    email: vine
+      .string()
+      .email()
+      .trim()
+      .normalizeEmail()
+      .unique(async (db, value, field) => {
+        // Allow the user to keep their current email
+        const userId = (field.meta as { userId?: number }).userId
+        const query = db.from('users').where('email', value)
+        if (userId) query.whereNot('id', userId)
+        const row = await query.first()
+        return !row
+      })
+      .optional(),
+
+    /**
+     * Changing the password requires confirming the current one first.
+     * Both fields must be present together.
+     */
+    currentPassword: vine.string().optional(),
+    newPassword: vine.string().minLength(8).maxLength(128).use(strongPassword()).optional(),
   })
 )

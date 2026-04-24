@@ -1,4 +1,4 @@
-# Zabe API - AdonisJS Backend
+# Icbox API - AdonisJS Backend
 
 API REST moderna construída com AdonisJS v6, PostgreSQL e Redis, implementando autenticação híbrida (API Tokens + Sessões Web).
 

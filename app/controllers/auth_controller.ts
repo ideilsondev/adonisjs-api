@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { registerValidator, loginValidator } from '#validators/auth'
+import { registerValidator, loginValidator, updateProfileValidator } from '#validators/auth'
 import AuthService from '#services/auth_service'
 import AuditLogger from '#services/audit_logger'
 
@@ -33,10 +33,31 @@ export default class AuthController {
     let user
     try {
       user = await this.authService.verifyCredentials(email, password)
-    } catch {
+    } catch (error: unknown) {
+      const code = (error as { code?: string }).code
+
+      // Account exists and password is correct, but the account was deactivated.
+      // Because the user already proved knowledge of the correct credentials,
+      // it is safe (and helpful) to tell them why access was denied.
+      if (code === 'E_ACCOUNT_INACTIVE') {
+        this.auditLogger.loginBlocked({ request }, email)
+        return response.forbidden({
+          error: {
+            message: 'Your account has been deactivated. Please contact support.',
+            code: 'E_ACCOUNT_INACTIVE',
+          },
+        })
+      }
+
+      // Wrong email or wrong password — keep the message generic to avoid
+      // revealing whether the email is registered in the system.
       this.auditLogger.loginFailed({ request }, email, 'invalid_credentials')
-      // Re-throw so the global exception handler returns the correct status
-      throw new Error('Invalid credentials')
+      return response.unauthorized({
+        error: {
+          message: 'Invalid credentials',
+          code: 'E_INVALID_CREDENTIALS',
+        },
+      })
     }
 
     if (client === 'api') {
@@ -90,5 +111,29 @@ export default class AuthController {
   async me({ auth, response }: HttpContext) {
     const user = auth.user
     return response.ok({ user })
+  }
+
+  /**
+   * Update the authenticated user's own profile.
+   *
+   * Accepts partial updates (PATCH semantics) — only send what changed.
+   * Password change requires currentPassword + newPassword together.
+   * On a successful password change every other active token is revoked.
+   */
+  async update({ auth, request, response }: HttpContext) {
+    const user = auth.user!
+
+    const payload = await request.validateUsing(updateProfileValidator, {
+      meta: { userId: user.id },
+    })
+
+    const updated = await this.authService.updateProfile(user, payload)
+
+    this.auditLogger.log({ request }, 'auth:register', {
+      userId: updated.id,
+      meta: { action: 'profile_updated' },
+    })
+
+    return response.ok({ user: updated })
   }
 }

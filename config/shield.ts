@@ -40,11 +40,7 @@ const shieldConfig = defineConfig({
      * don't rely on cookies and are not vulnerable to CSRF.
      * Web session endpoints will still be protected.
      */
-    exceptRoutes: [
-      '/api/auth/login', // Login accepts both API and web clients
-      '/api/auth/register', // Registration endpoint
-      '/api/*', // Exclude all API routes if using Bearer tokens
-    ],
+    exceptRoutes: (ctx) => ctx.request.url().startsWith('/api/'),
 
     /**
      * Expose an encrypted XSRF-TOKEN cookie for frontend HTTP clients.
